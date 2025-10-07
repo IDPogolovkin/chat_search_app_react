@@ -27,6 +27,29 @@ class ApiService {
         return this._fetch(`/messages?collection_name=${collectionName}&${query.toString()}`);
     }
 
+    async getMessagesForAnalysis(collectionName, limit = 2000) {
+        let allMessages = [];
+        let offset = null;
+        let hasMore = true;
+
+        while (hasMore && allMessages.length < limit) {
+            const params = new URLSearchParams({ limit: 100 });
+            if (offset) {
+                params.set('offset', offset);
+            }
+            const data = await this._fetch(`/messages?collection_name=${collectionName}&${params.toString()}`);
+            
+            if (data.items && data.items.length > 0) {
+                allMessages = [...allMessages, ...data.items];
+                offset = data.offset;
+                hasMore = !!offset;
+            } else {
+                hasMore = false;
+            }
+        }
+        return allMessages;
+    }
+
     search(params) {
         return this._fetch('/search', {
             method: 'POST',
@@ -47,11 +70,6 @@ class ApiService {
     searchGuard(params) {
          const query = new URLSearchParams(params);
          return this._fetch(`/guard/search?${query.toString()}`, { method: 'POST' });
-    }
-
-    getGraph(params) {
-        const query = new URLSearchParams(params);
-        return this._fetch(`/graph?${query.toString()}`);
     }
 }
 
