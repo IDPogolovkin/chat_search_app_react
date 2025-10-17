@@ -35,30 +35,16 @@ function SearchPage({ collections, selectedCollection, setSelectedCollection }) 
         offsetStack: [],
     });
 
-    const areAdditionalParamsDefault = useCallback(() => {
-        return Object.entries(searchParams).every(([key, value]) => 
-            key === 'query' || key === 'limit' || value === INITIAL_SEARCH_PARAMS[key]
-        );
-    }, [searchParams]);
-
-    const areFiltersOnlyPlatform = useCallback(() => {
-        return Object.entries(filters).every(([key, value]) => 
-            key === 'platform' || value === INITIAL_FILTERS[key]
-        );
-    }, [filters]);
-
     const loadMessages = useCallback(async (offset = null) => {
         if (!selectedCollection) return;
         setIsLoading(true);
         setStatus('Загрузка...');
         try {
-            const params = {};
-            if (searchParams.limit) params.limit = Number(searchParams.limit);
+            const params = { limit: searchParams.limit };
             if (offset) params.offset = offset;
             if (filters.platform !== 'all') params.platform = filters.platform;
 
-            const query = new URLSearchParams(params);
-            const data = await api.getMessages(selectedCollection, query);
+            const data = await api.getMessages(selectedCollection, params);
             setResults(data.items || []);
             setPagination(prev => ({ ...prev, nextOffset: data.offset }));
             setStatus(`Показано: ${data.items?.length || 0} сообщений.`);
@@ -80,15 +66,13 @@ function SearchPage({ collections, selectedCollection, setSelectedCollection }) 
         }
     }, [selectedCollection, loadMessages]);
 
-    const handleSearch = useCallback(async () => {
+    const handleSearch = async () => {
         if (!selectedCollection) {
             setStatus('Пожалуйста, выберите коллекцию.');
             return;
         }
-
-        if (!searchParams.query.trim() && areAdditionalParamsDefault() && areFiltersOnlyPlatform()) {
-            loadMessages();
-            setIsSearchActive(false);
+        if (!searchParams.query.trim()) {
+            handleReset();
             return;
         }
 
@@ -109,7 +93,6 @@ function SearchPage({ collections, selectedCollection, setSelectedCollection }) 
             }
         });
         if ('from_me' in body) body.from_me = body.from_me === 'true';
-        if ('limit' in body && !body.limit) delete body.limit;
 
         try {
             const data = await api.search(body);
@@ -120,13 +103,7 @@ function SearchPage({ collections, selectedCollection, setSelectedCollection }) 
         } finally {
             setIsLoading(false);
         }
-    }, [selectedCollection, filters, searchParams, loadMessages, areAdditionalParamsDefault, areFiltersOnlyPlatform]);
-
-    useEffect(() => {
-        if (selectedCollection && !isLoading) {
-            handleSearch();
-        }
-    }, [filters, selectedCollection, isLoading, handleSearch]);
+    };
 
     const handleReset = () => {
         setFilters(INITIAL_FILTERS);
